@@ -1,77 +1,65 @@
-const { body, param, query, validationResult } = require('express-validator');
-const mongoose = require('mongoose');
-const logger = require('../config/logger');
+const { body, param, query } = require("express-validator");
 
-// Helper middleware: Checks if validation errors occurred
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
+const employeeFields = (optional) => {
+  const field = (name) => (optional ? body(name).optional() : body(name));
 
-  if (!errors.isEmpty()) {
-    logger.warn(`Validation failure on ${req.originalUrl}: ${JSON.stringify(errors.array())}`);
-    return res.status(400).json({
-      status: false,
-      errors: errors.array()
-    });
-  }
+  // Required, trimmed string with a max length (isString runs before trim to reject objects)
+  const textField = (name, label, max) =>
+    field(name)
+      .isString()
+      .withMessage(`${label} must be a string`)
+      .bail()
+      .trim()
+      .notEmpty()
+      .withMessage(`${label} is required`)
+      .isLength({ max })
+      .withMessage(`${label} is too long`);
 
-  next();
+  return [
+    textField("first_name", "First name", 50),
+    textField("last_name", "Last name", 50),
+    textField("email", "Email", 100)
+      .isEmail()
+      .withMessage("Invalid email format"),
+    textField("position", "Position", 100),
+    field("salary")
+      .notEmpty()
+      .withMessage("Salary is required")
+      .isFloat({ gt: 0 })
+      .withMessage("Salary must be a positive number")
+      .toFloat(),
+    field("date_of_joining")
+      .notEmpty()
+      .withMessage("Date of joining is required")
+      .isISO8601()
+      .withMessage("Date of joining must be a valid date (YYYY-MM-DD)")
+      .toDate(),
+    textField("department", "Department", 100),
+  ];
 };
 
-// Validation rules for creating/updating employees
-const validateEmployee = [
-  body('first_name')
-    .trim()
-    .notEmpty().withMessage('First name is required'),
+const createEmployeeValidator = employeeFields(false);
 
-  body('last_name')
-    .trim()
-    .notEmpty().withMessage('Last name is required'),
-
-  body('email')
-    .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Must be a valid email address'),
-
-  body('position')
-    .trim()
-    .notEmpty().withMessage('Position is required'),
-
-  body('salary')
-    .notEmpty().withMessage('Salary is required')
-    .isNumeric().withMessage('Salary must be a number')
-    .custom((value) => value >= 0).withMessage('Salary must be a positive number'),
-
-  body('date_of_joining')
-    .notEmpty().withMessage('Date of joining is required')
-    .isISO8601().toDate().withMessage('Valid date format is required (YYYY-MM-DD)'),
-
-  body('department')
-    .trim()
-    .notEmpty().withMessage('Department is required'),
-
-  handleValidationErrors
+const updateEmployeeValidator = [
+  param("eid").isMongoId().withMessage("Invalid employee ID"),
+  ...employeeFields(true),
 ];
 
-// Validate Mongo ObjectId in URL parameter (e.g., GET /api/v1/emp/employees/:eid)
-const validateObjectIdParam = [
-  param('eid')
-    .custom((value) => mongoose.Types.ObjectId.isValid(value))
-    .withMessage('Invalid Employee ObjectId format'),
-
-  handleValidationErrors
+const eidParamValidator = [
+  param("eid").isMongoId().withMessage("Invalid employee ID"),
 ];
 
-// Validate Mongo ObjectId in Query parameter (e.g., DELETE /api/v1/emp/employees?eid=xxx)
-const validateObjectIdQuery = [
-  query('eid')
-    .custom((value) => mongoose.Types.ObjectId.isValid(value))
-    .withMessage('Invalid Employee ObjectId format in query parameter'),
-
-  handleValidationErrors
+const eidQueryValidator = [
+  query("eid")
+    .notEmpty()
+    .withMessage("Employee ID (eid) query parameter is required")
+    .isMongoId()
+    .withMessage("Invalid employee ID"),
 ];
 
 module.exports = {
-  validateEmployee,
-  validateObjectIdParam,
-  validateObjectIdQuery
+  createEmployeeValidator,
+  updateEmployeeValidator,
+  eidParamValidator,
+  eidQueryValidator,
 };

@@ -1,13 +1,30 @@
-const rateLimit = require('express-rate-limit');
+const rateLimit = require("express-rate-limit");
+const logger = require("../config/logger");
 
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                  // Max 10 attempts
-  message: {
-    status: false,
-    message: 'Too many attempts. Please try again after 15 minutes.'
-  }
-});
+const createLimiter = (limit, message) =>
+  rateLimit({
+    windowMs: FIFTEEN_MINUTES,
+    limit,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: (req, res, next, options) => {
+      logger.warn(`Rate limit exceeded: ${req.ip} on ${req.method} ${req.originalUrl}`);
+      res.status(options.statusCode).json({ status: false, message });
+    },
+  });
 
-module.exports = { authLimiter };
+// Strict: brute-force protection for signup/login
+const authLimiter = createLimiter(
+  5,
+  "Too many authentication attempts. Please try again after 15 minutes.",
+);
+
+// General: all /api traffic
+const apiLimiter = createLimiter(
+  100,
+  "Too many requests. Please try again after 15 minutes.",
+);
+
+module.exports = { authLimiter, apiLimiter };
