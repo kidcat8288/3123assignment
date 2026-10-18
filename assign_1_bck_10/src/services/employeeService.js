@@ -2,6 +2,9 @@ const Employee = require("../models/Employee");
 const AppError = require("../utils/AppError");
 const logger = require("../config/logger");
 
+// Every query also filters by owner, so other users' employees never match
+
+// 403 if it belongs to another user, otherwise 404
 async function throwNotFoundOrForbidden(eid, userId) {
   const exists = await Employee.exists({ _id: eid });
   if (exists) {
@@ -14,8 +17,7 @@ async function throwNotFoundOrForbidden(eid, userId) {
 }
 
 async function getAllEmployeesByOwner(userId) {
-  const employees = await Employee.find({ user: userId });
-  return employees;
+  return Employee.find({ user: userId }).sort({ created_at: -1 });
 }
 
 async function getEmployeeById(eid, userId) {
@@ -31,6 +33,7 @@ async function createEmployee(userId, employeeData) {
 }
 
 async function updateEmployee(eid, userId, updates) {
+  // Owner can never be changed
   delete updates.user;
 
   const employee = await Employee.findOneAndUpdate(

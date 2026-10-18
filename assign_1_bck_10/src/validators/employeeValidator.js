@@ -3,7 +3,7 @@ const { body, param, query } = require("express-validator");
 const employeeFields = (optional) => {
   const field = (name) => (optional ? body(name).optional() : body(name));
 
-  // Required, trimmed string with a max length (isString runs before trim to reject objects)
+  // isString runs before trim to reject non string payloads
   const textField = (name, label, max) =>
     field(name)
       .isString()
@@ -38,16 +38,13 @@ const employeeFields = (optional) => {
   ];
 };
 
-const createEmployeeValidator = employeeFields(false);
-
-const updateEmployeeValidator = [
-  param("eid").isMongoId().withMessage("Invalid employee ID"),
-  ...employeeFields(true),
-];
-
 const eidParamValidator = [
   param("eid").isMongoId().withMessage("Invalid employee ID"),
 ];
+
+const createEmployeeValidator = employeeFields(false);
+
+const updateEmployeeValidator = [...eidParamValidator, ...employeeFields(true)];
 
 const eidQueryValidator = [
   query("eid")

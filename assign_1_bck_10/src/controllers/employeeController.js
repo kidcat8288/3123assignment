@@ -3,8 +3,8 @@ const logger = require("../config/logger");
 const employeeService = require("../services/employeeService");
 const AppError = require("../utils/AppError");
 
+// Owner always comes from the verified token, never from the request
 
-// GET /api/v1/emp/employees/:eid
 const getEmployee = async (req, res) => {
   const employee = await employeeService.getEmployeeById(
     req.params.eid,
@@ -13,13 +13,11 @@ const getEmployee = async (req, res) => {
   res.status(200).json({ status: true, employee });
 };
 
-// GET /api/v1/emp/employees
 const getEmployeesByOwner = async (req, res) => {
   const employees = await employeeService.getAllEmployeesByOwner(req.user.id);
   res.status(200).json({ status: true, count: employees.length, employees });
 };
 
-// POST /api/v1/emp/employees
 const createEmployee = async (req, res) => {
   const employeeData = matchedData(req, { locations: ["body"] });
   const employee = await employeeService.createEmployee(
@@ -35,9 +33,8 @@ const createEmployee = async (req, res) => {
   });
 };
 
-// PUT /api/v1/emp/employees/:eid
 const updateEmployee = async (req, res) => {
-  // Only fields that passed validation are applied; anything else in the body is ignored
+  // Only validated fields are applied
   const updates = matchedData(req, { locations: ["body"] });
   if (Object.keys(updates).length === 0) {
     throw new AppError(400, "No valid fields provided to update.");
@@ -57,7 +54,6 @@ const updateEmployee = async (req, res) => {
   });
 };
 
-// DELETE /api/v1/emp/employees?eid=xxx
 const deleteEmployee = async (req, res) => {
   await employeeService.deleteEmployee(req.query.eid, req.user.id);
   logger.info(`Employee ${req.query.eid} deleted by user ${req.user.id}`);

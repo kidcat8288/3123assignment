@@ -30,7 +30,10 @@ const employeeSchema = new mongoose.Schema(
     salary: {
       type: Number,
       required: [true, "Salary is required"],
-      min: [0, "Salary must be a positive number"],
+      validate: {
+        validator: (value) => value > 0,
+        message: "Salary must be a positive number",
+      },
     },
     date_of_joining: {
       type: Date,
@@ -41,7 +44,6 @@ const employeeSchema = new mongoose.Schema(
       required: [true, "Department is required"],
       trim: true,
     },
-    // Ownership Link: References the User who created this employee
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

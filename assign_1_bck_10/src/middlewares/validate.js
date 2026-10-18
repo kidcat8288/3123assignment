@@ -1,7 +1,6 @@
 const { validationResult } = require("express-validator");
 const logger = require("../config/logger");
 
-// Runs after a validator chain; stops the request with 400 if anything failed
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -9,8 +8,10 @@ const validate = (req, res, next) => {
     return res.status(400).json({
       status: false,
       message: "Validation failed.",
-      // Never echo submitted values back (could contain a password)
-      errors: errors.array().map(({ path, msg }) => ({ field: path, message: msg })),
+      // Values are omitted, they may contain passwords
+      errors: errors
+        .array()
+        .map(({ path, msg }) => ({ field: path, message: msg })),
     });
   }
   next();

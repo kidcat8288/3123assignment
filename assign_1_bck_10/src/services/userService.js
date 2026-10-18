@@ -20,6 +20,7 @@ async function createUser({ username, email, password }) {
   }
 }
 
+// Username takes priority if both are sent
 async function findByUsernameOrEmail({ username, email }) {
   const filter = username ? { username } : { email: email.toLowerCase() };
   return User.findOne(filter);

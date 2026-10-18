@@ -10,18 +10,18 @@ const createLimiter = (limit, message) =>
     standardHeaders: "draft-8",
     legacyHeaders: false,
     handler: (req, res, next, options) => {
-      logger.warn(`Rate limit exceeded: ${req.ip} on ${req.method} ${req.originalUrl}`);
+      logger.warn(
+        `Rate limit exceeded: ${req.ip} on ${req.method} ${req.originalUrl}`,
+      );
       res.status(options.statusCode).json({ status: false, message });
     },
   });
 
-// Strict: brute-force protection for signup/login
 const authLimiter = createLimiter(
   5,
   "Too many authentication attempts. Please try again after 15 minutes.",
 );
 
-// General: all /api traffic
 const apiLimiter = createLimiter(
   100,
   "Too many requests. Please try again after 15 minutes.",
