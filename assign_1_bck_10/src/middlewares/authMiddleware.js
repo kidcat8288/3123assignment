@@ -1,32 +1,40 @@
-const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../config/env');
-const logger = require('../config/logger');
+const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../config/env");
+const logger = require("../config/logger");
+
+const unauthorized = (res, message) => res.status(401).json({ status: false, message });
 
 const authenticateToken = (req, res, next) => {
-  // 1. Read the Authorization header
-  const authHeader = req.headers['authorization'];
-
-  // 2. Extract token from "Bearer <token>"
-  const token = authHeader && authHeader.split(' ')[1];
-
-  // 3. Reject if header or token is missing
-  if (!token) {
+  // 1. Expect "Authorization: Bearer <token>"
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) {
     logger.warn(`Unauthorized request: Missing token on ${req.originalUrl}`);
-    return res.status(401).json({ status: false, message: 'Access denied. Token missing.' });
+    return unauthorized(res, "Access denied. Token missing.");
+  }
+
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme !== "Bearer" || !token) {
+    logger.warn(`Unauthorized request: Malformed Authorization header on ${req.originalUrl}`);
+    return unauthorized(res, "Authorization header must be in the format: Bearer <token>.");
   }
 
   try {
-    // 4. Verify signature and expiration
-    const decoded = jwt.verify(token, jwtSecret);
+    // 2. Verify signature and expiration (only accept the algorithm we sign with)
+    const decoded = jwt.verify(token, jwtSecret, { algorithms: ["HS256"] });
+    if (!decoded.id) {
+      throw new jwt.JsonWebTokenError("Token payload missing user id");
+    }
 
-    // 5. Attach user details to req.user for controllers
+    // 3. Attach user identity for controllers; ownership is always taken from here
     req.user = decoded;
-
-    // 6. Pass control to the next middleware or controller
     next();
   } catch (error) {
-    logger.warn(`Authentication failure: Invalid/Expired token on ${req.originalUrl}`);
-    return res.status(401).json({ status: false, message: 'Invalid or expired token.' });
+    if (error.name === "TokenExpiredError") {
+      logger.warn(`Authentication failure: Expired token on ${req.originalUrl}`);
+      return unauthorized(res, "Token expired. Please log in again.");
+    }
+    logger.warn(`Authentication failure: Invalid token on ${req.originalUrl}`);
+    return unauthorized(res, "Invalid token.");
   }
 };
 
